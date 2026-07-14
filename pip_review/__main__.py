@@ -8,6 +8,8 @@ import subprocess
 import sys
 from functools import partial
 from operator import itemgetter
+from os import environ as os_environ
+from os import path as os_path
 
 import pip
 from packaging import version
@@ -191,6 +193,14 @@ class InteractiveAsker(object):
 
 ask_to_install = partial(InteractiveAsker().ask, prompt='Upgrade now?')
 
+def get_constrained_packages(constraint_file):
+    constrained_packages = []
+    if os_path.isfile(constraint_file):
+        with open(constraint_file, "r") as f:
+            for line in f:
+                if "==" in line:
+                    constrained_packages.append(line.split("==")[0].strip())
+    return constrained_packages
 
 def update_packages(packages, forwarded, continue_on_fail, freeze_outdated_packages):
     upgrade_cmd = PIP_CMD + ['install', '-U'] + forwarded
@@ -287,6 +297,9 @@ def main():
     if args.raw and args.interactive:
         raise SystemExit('--raw and --interactive cannot be used together')
 
+    constraint_file = os_environ.get("PIP_CONSTRAINT", "")
+    constrained_packages = get_constrained_packages(constraint_file)
+
     outdated = get_outdated_packages(list_args)
     if not outdated and not args.raw:
         logger.info('Everything up-to-date')
@@ -299,8 +312,11 @@ def main():
         update_packages(outdated, install_args, args.continue_on_fail, args.freeze_outdated_packages)
         return
     if args.raw:
-        for pkg in outdated:
-            logger.info('{0}=={1}'.format(pkg['name'], pkg['latest_version']))
+        if not outdated:
+            logger.info('Everything up-to-date')
+        else:
+            for pkg in outdated:
+                logger.info('{0}=={1}'.format(pkg['name'], pkg['latest_version']))
         return
 
     selected = []
@@ -308,6 +324,14 @@ def main():
         logger.info('{0}=={1} is available (you have {2})'.format(
             pkg['name'], pkg['latest_version'], pkg['version']
         ))
+        constrained_text = " [Constrained]" if pkg["name"] in constrained_packages else ""
+        if constrained_text:
+            logger.info(
+                "{0}=={1} is available (you have {2}){3}".format(
+                    pkg["name"],
+                    pkg["latest_version"],
+                    pkg["version"],
+                    constrained_text))
         if args.interactive:
             answer = ask_to_install()
             if answer in ['y', 'a']:
