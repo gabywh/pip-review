@@ -324,14 +324,12 @@ def main():
         logger.info('{0}=={1} is available (you have {2})'.format(
             pkg['name'], pkg['latest_version'], pkg['version']
         ))
-        constrained_text = " [Constrained]" if pkg["name"] in constrained_packages else ""
-        if constrained_text:
+        if pkg["name"] in constrained_packages:
             logger.info(
-                "{0}=={1} is available (you have {2}){3}".format(
+                "{0}=={1} is available (you have {2}, constrained".format(
                     pkg["name"],
                     pkg["latest_version"],
-                    pkg["version"],
-                    constrained_text))
+                    pkg["version"]))
         if args.interactive:
             answer = ask_to_install()
             if answer in ['y', 'a']:
