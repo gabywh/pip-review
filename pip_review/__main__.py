@@ -53,6 +53,7 @@ Python>=3.3.
 LIST_ONLY = {
     'l', 'local', 'path', 'format', 'not-required',
     'exclude-editable', 'include-editable',
+    'exclude',
 }
 
 # parameters that pip install supports but not pip list
