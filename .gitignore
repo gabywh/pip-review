@@ -11,4 +11,5 @@ __pycache__
 *.pyc
 
 # Additionally, ignore virtual environments
+.venv/
 venv/
