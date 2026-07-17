@@ -1,4 +1,4 @@
-""" pip-review lets you smoothly manage all available PyPI updates. """
+"""pip-review lets you smoothly manage all available PyPI updates."""
 
 from setuptools import setup
 
@@ -55,5 +55,5 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Topic :: System :: Systems Administration',
-    ]
+    ],
 )
