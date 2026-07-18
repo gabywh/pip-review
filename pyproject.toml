@@ -91,4 +91,6 @@ line-ending = "lf"
 # Skip docstrings entirely (or use "fmt: skip" in docstrings)
 docstring-code-format = false
 
-
+[tool.pylint]
+py-version="2.7"
+disable=["missing-function-docstring", "too-few-public-methods", "useless-object-inheritance"]
