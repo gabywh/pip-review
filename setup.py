@@ -11,7 +11,11 @@ setup(
     author='Julian Gonggrijp, Vincent Driessen',
     author_email='j.gonggrijp@gmail.com',
     description=__doc__.strip('\n'),
+    # py2.7 does not support encoding option in open(), could use codecs.open()
+    # also not using with() here for one-line open().read()
+    # pylint: disable=unspecified-encoding, consider-using-with
     long_description=open('README.rst').read(),
+    # pylint: enable=unspecified-encoding, consider-using-with
     long_description_content_type='text/x-rst',
     packages=[
         'pip_review',

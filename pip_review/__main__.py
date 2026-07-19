@@ -1,3 +1,19 @@
+"""
+
+pip-review
+
+pip-review is a convenience wrapper around pip.
+
+Module main.
+
+Responsible for
+1. cmdline parsing if called via cmdline.
+2. parsing requirements and constraints files for pip.
+
+See the README.rst for the full description.
+
+"""
+
 from __future__ import absolute_import
 
 import argparse
@@ -12,23 +28,40 @@ from operator import itemgetter
 import pip
 from packaging import version
 
-if sys.version_info.major == 3:  # Python3 Imports
+
+def is_python27():
+    return sys.version_info.major == 2 and sys.version_info.minor == 7
+
+
+def is_python3():
+    return sys.version_info.major == 3
+
+
+if is_python3():
 
     def check_output(*args, **kwargs):
-        process = subprocess.Popen(stdout=subprocess.PIPE, *args, **kwargs)
-        output, _ = process.communicate()
-        retcode = process.poll()
-        if retcode:
-            error = subprocess.CalledProcessError(retcode, args[0])
-            error.output = output
-            raise error
-        return output
+        with subprocess.Popen(
+            stdout=subprocess.PIPE, *args, **kwargs
+        ) as process:
+            output, _ = process.communicate()
+            retcode = process.poll()
+            if retcode:
+                error = subprocess.CalledProcessError(retcode, args[0])
+                error.output = output
+                raise error
+            return output
 else:  # Python2 Imports
-    from subprocess import check_output
+    from subprocess import check_output  # noqa: I001
 
+    # when running pylint with python v3, it complains about
+    # __builtin__ since it was renamed to __builtins__ in v3
+    # but since we know at runtime we are in v2 here, then disable
+
+    # pylint: disable=redefined-builtin, import-error
     import __builtin__
 
     input = getattr(__builtin__, 'raw_input')
+    # pylint: enable=redefined-builtin, import-error
 
 
 VERSION_PATTERN = re.compile(
@@ -120,7 +153,10 @@ VERSION_EPILOG = (
 
 
 def parse_args():
-    description = 'Keeps your Python packages fresh. Looking for a new maintainer! See https://github.com/jgonggrijp/pip-review/issues/76'
+    description = (
+        'Keeps your Python packages fresh. Looking for a new maintainer!\
+            See https://github.com/jgonggrijp/pip-review/issues/76'
+    )
     parser = argparse.ArgumentParser(
         description=description,
         epilog=EPILOG + VERSION_EPILOG,
@@ -203,15 +239,14 @@ def filter_forwards(args, exclude):
 
 
 class StdOutFilter(logging.Filter):
+    """simple stdout filter for logging"""
+
     def filter(self, record):
         return record.levelno in [logging.DEBUG, logging.INFO]
 
 
 def setup_logging(verbose):
-    if verbose:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
+    level = logging.DEBUG if verbose else logging.INFO
 
     format_ = '%(message)s'
 
@@ -233,6 +268,8 @@ def setup_logging(verbose):
 
 
 class InteractiveAsker(object):
+    """helper for interactive prompting"""
+
     def __init__(self):
         self.cached_answer = None
         self.last_answer = None
@@ -269,17 +306,20 @@ def update_packages(
     upgrade_cmd = PIP_CMD + ['install', '-U'] + forwarded
 
     if freeze_outdated_packages:
+        # py2.7 does not support encoding option in open(), could use codecs.open()
+        # pylint: disable=unspecified-encoding
         with open('requirements.txt', 'w') as f:
             for pkg in packages:
-                f.write('{0}=={1}\n'.format(pkg['name'], pkg['version']))
+                f.write('{}=={}\n'.format(pkg['name'], pkg['version']))
+        # pylint: enable=unspecified-encoding
 
     if not continue_on_fail:
-        upgrade_cmd += ['{0}'.format(pkg['name']) for pkg in packages]
+        upgrade_cmd += ['{}'.format(pkg['name']) for pkg in packages]
         subprocess.call(upgrade_cmd, stdout=sys.stdout, stderr=sys.stderr)
         return
 
     for pkg in packages:
-        upgrade_cmd += ['{0}'.format(pkg['name'])]
+        upgrade_cmd += ['{}'.format(pkg['name'])]
         subprocess.call(upgrade_cmd, stdout=sys.stdout, stderr=sys.stderr)
         upgrade_cmd.pop()
 
@@ -319,11 +359,10 @@ def get_outdated_packages(forwarded):
         command.append('--format=json')
         output = check_output(command).decode('utf-8')
         packages = json.loads(output)
-        return packages
     else:
         output = check_output(command).decode('utf-8').strip()
         packages = parse_legacy(output)
-        return packages
+    return packages
 
 
 # Next two functions describe how to collect data for the
@@ -385,17 +424,28 @@ def main():
         )
         return
     if args.raw:
-        for pkg in outdated:
-            logger.info('{0}=={1}'.format(pkg['name'], pkg['latest_version']))
+        log_messages = (
+            '{}=={}'.format(
+                pkg.get('name', 'unknown'), pkg.get('latest_version', 'unknown')
+            )
+            for pkg in outdated
+        )
+        logger.info('\n'.join(log_messages))
         return
 
     selected = []
     for pkg in outdated:
+        # since we also prompt interactively inside this loop, we cannot do
+        # so-called lazy logging - or .. we could but have to go through the
+        # same for "pkg in outdated" loop twice, once for logging, once for
+        # interactive thus negating any lazy-logging advantage, so pylint: disable
+        # pylint: disable=logging-format-interpolation
         logger.info(
-            '{0}=={1} is available (you have {2})'.format(
+            '{}=={} is available (you have {})'.format(
                 pkg['name'], pkg['latest_version'], pkg['version']
             )
         )
+        # pylint: enable=logging-format-interpolation
         if args.interactive:
             answer = ask_to_install()
             if answer in ['y', 'a']:
